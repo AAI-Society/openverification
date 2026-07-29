@@ -1,0 +1,41 @@
+name: Validate use-case stories
+
+on:
+  pull_request:
+    paths:
+      - "Proof-of-Control/use_cases/**"
+      - "scripts/validate_use_cases.py"
+      - "tests/test_validate_use_cases.py"
+      - ".github/workflows/validate-use-cases.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "Proof-of-Control/use_cases/**"
+      - "scripts/validate_use_cases.py"
+      - "tests/test_validate_use_cases.py"
+      - ".github/workflows/validate-use-cases.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Check documented story shape
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Validate stories
+        run: python scripts/validate_use_cases.py
+
+      - name: Run validator tests
+        run: python -m unittest discover -s tests -v
