@@ -50,7 +50,17 @@ bring them to the discussion.
 2. Fill in the frontmatter (`industry`, `use_case`, `claimed_tier`) and each
    section, including **"Why not one tier down?"**
 3. One story per file. Keep the disclaimer line at the top.
-4. Open a PR.
+4. From the repository root, run:
+
+   ```sh
+   python3 scripts/validate_use_cases.py
+   ```
+
+5. Open a PR.
 
 Stories are **hypothetical illustrations for calibration, not representations of
 any specific organization's current state.**
+
+The command catches structural problems before review. It does not judge
+whether a tier assignment is correct, establish that a claim is true, or
+determine conformance with the standard.
