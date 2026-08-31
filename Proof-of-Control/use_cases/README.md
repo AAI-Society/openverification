@@ -1,7 +1,7 @@
 # Verifiability use cases
 
 This folder holds worked stories that show how a deployment maps onto the six
-verification domains and the four [Verifiability Tiers](https://github.com/AAI-Society/ov-poc-standard/blob/0e8829ad03547adf0d24968119d5ea5bd8a89e2c/0.1/en/0x10-C08-Verifiability-Tiers.md#L4). They are calibration
+verification domains and the four Verifiability Tiers. They are calibration
 material. They carry no normative force, and they are the fastest way to see
 how a Proof-of-Control claim is made and how an evaluator reads one.
 
@@ -62,11 +62,49 @@ threat vocabulary.
 
 ## To contribute
 
-1. Copy [`_TEMPLATE.md`](_TEMPLATE.md) and rename it to a descriptive slug.
-2. Fill in the frontmatter, including `threats`.
-3. Complete every section, including the argument for why one tier down would
+Two ways, depending on how you work.
+
+**In your browser, with no git.** Open
+[`_TEMPLATE.md`](_TEMPLATE.md), click **Raw**, and copy everything. Come back to
+this folder, click **Add file** and then **Create new file**. GitHub forks the
+repository for you at that point. Name the file a descriptive slug ending in
+`.md`, paste the template in, fill it out, and click **Propose new file** to open
+a pull request.
+
+**With git.** Fork the repository, clone your fork, create a branch, copy
+`_TEMPLATE.md` to a descriptive slug, fill it out, push, and open a pull request
+from your fork.
+
+Either way:
+
+1. Replace every value in the frontmatter, including `threats`.
+2. Replace every italic prompt with your own text, and delete the prompts.
+3. Delete the HTML comment at the top of the file.
+4. Complete every section, including the argument for why one tier down would
    not do.
-4. Open a pull request with one scenario or one incident per file.
+5. One scenario or one incident per file.
+
+### Filling in an incident submission
+
+An incident replaces three things in the template. The frontmatter carries
+`submission_type: incident`, `observed_tier` and `required_tier` in place of
+`claimed_tier`, and a required `sources:` list with primary sources first. The
+disclaimer becomes *"Documented incident. Facts are drawn from the sources
+listed in the frontmatter."* And the single "Claimed tier" heading becomes two:
+**Tier observed** and **Tier the risky domains demanded**.
+
+### The two tests in "Why not one tier down?"
+
+**Reversibility.** Can the harm be undone once you detect it? Money that has
+settled, data that has been disclosed and a border that has been crossed are all
+final. Where detection after the fact is not a remedy, the argument for Tier 4 is
+that enforcement has to refuse the action rather than report it.
+
+**Completeness.** At Tier 3 you can verify that the records you hold were not
+altered, and you are not guaranteed the record is whole: an agent can act
+off-record, and the absence of a record tells you nothing. At Tier 4 the action
+cannot execute without producing evidence, so absence of evidence means the
+action did not happen.
 
 ## Coverage
 
