@@ -1,0 +1,21 @@
+name: Use-case coverage index
+
+on:
+  push:
+    paths:
+      - 'Proof-of-Control/use_cases/**'
+  pull_request:
+    paths:
+      - 'Proof-of-Control/use_cases/**'
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify the coverage index matches the submissions
+        working-directory: Proof-of-Control/use_cases
+        run: python3 make_coverage.py --check

@@ -2,7 +2,13 @@
 industry: cloud-services
 use_case: AI agent authenticates and acts using stolen user credentials
 business_impact: Mass data exfiltration and regulatory breach liability
+submission_type: scenario
 claimed_tier: 4
+threats:
+  - identity-abuse
+  - excessive-agency
+  - data-exfiltration
+  - trust-opacity
 ---
 # Account Takeover Agent Operating on Stolen Credentials
 
@@ -56,6 +62,55 @@ produce no valid chain; the agent cannot act.
 | Identity      | 4    | Identity of agent and its human principal must be cryptographically bound; stolen credentials confer no agent authority |
 | Privacy       | 3    | Data access patterns must be independently auditable to support breach investigation and regulatory response |
 | Portability   | 1    | Not a primary risk domain for this use case |
+
+## Threats exercised
+| Threat | What it looks like here |
+|---|---|
+| `identity-abuse` | An attacker authenticates an agent with stolen passwords, so the agent acts under a principal that never delegated to it |
+| `excessive-agency` | The agent inherits the compromised account's full permission set rather than the narrow scope any one task needs |
+| `data-exfiltration` | Customer records leave the cloud environment in bulk during the window before anomaly detection fires |
+| `trust-opacity` | Whether the Tier 4 claim holds turns on key custody, which a relying party cannot see unless it is disclosed |
+
+## What Proof-of-Control does not verify here
+- **The credential theft itself.** Proof-of-Control binds execution to a
+  delegation chain; it does nothing to stop passwords being phished, reused or
+  bought. Social engineering at the human level stays out of scope, and this
+  scenario begins after the credentials are already lost.
+- **Whether the legitimate grant was the right size.** If the account holder's
+  own delegation is broader than the task needs, an agent acting inside it
+  produces no violation. Proof-of-Control evidences what authority was
+  exercised, not whether granting it was wise.
+- **Covert exfiltration paths.** Gating covers the egress channels the
+  deployment mediates. Side channels, out-of-band copies taken from a
+  compromised host, and data encoded into otherwise permitted traffic are not
+  covered. Nor does Proof-of-Control assess whether the policy defining
+  "protected" is adequate in the first place.
+- **That the SSO or identity provider issuing the human session is sound.** The
+  gate verifies a delegation chain. It does not audit the federation that
+  produced the login the chain is anchored beside.
+- **Residual trust is disclosed, not eliminated.** Tier 4 makes the remaining
+  trust nameable and comparable. It does not make the deployment trust-free.
+
+## Residual trust assumptions to disclose
+- **Root of credential issuance.** Who identity-proofed the account holder at
+  enrollment, and to what assurance level. Every claim below inherits the
+  integrity of that enrollment, and a delegation chain rooted in credential
+  possession rather than a proofed identity collapses back to Tier 2.
+- **Key custody.** That the delegation signing key is holder-controlled,
+  device-bound, hardware-backed and non-exportable. A reader trusts both the
+  attestation asserting this and the secure-element vendor behind it. Platform
+  escrow of that key voids the claim.
+- **Attestation chain.** Its version, freshness window and revocation policy. A
+  stale or unrevoked attestation is indistinguishable from a current one to a
+  verifier that does not check both.
+- **Transparency log monitors.** Who monitors the log, and what happens if the
+  monitor set lapses. An unwatched log can equivocate without detection.
+- **Machine identity linkage.** Any point where the attestation of the agent
+  runtime and the attestation of its host are assumed to describe the same
+  machine, since nothing in the evidence itself proves that pairing.
+- **Federation boundaries.** Any place a federated assertion is accepted in
+  place of a delegation, which reintroduces exactly the
+  authentication-as-authorization collapse this use case exists to name.
 
 ## Notes / open questions
 - This use case is the clearest argument for Tier 4 in the enterprise space.
