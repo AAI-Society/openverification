@@ -70,6 +70,15 @@ threat vocabulary.
 
 ## Coverage
 
-`COVERAGE.md` is generated from the `threats` frontmatter across this folder
-and shows which threats have a worked use case. Threats with no coverage are
-where a submission helps most.
+<!-- coverage:start -->
+**Coverage: 0 of 29 threats** across 1 use cases. `░░░░░░░░░░░░░░░░░░░░░░░░░░░░`  
+Full index in [COVERAGE.md](COVERAGE.md).
+<!-- coverage:end -->
+
+`COVERAGE.md` is generated from the `threats:` frontmatter across this
+folder and shows which threats have a worked use case. Threats with no
+coverage are where a submission helps most.
+
+After merging a submission, run `python3 make_coverage.py`. Continuous
+integration runs `python3 make_coverage.py --check`, which fails if the
+index has drifted from the submissions.
