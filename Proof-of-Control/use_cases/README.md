@@ -71,7 +71,7 @@ threat vocabulary.
 ## Coverage
 
 <!-- coverage:start -->
-**Coverage: 0 of 29 threats** across 1 use cases. `░░░░░░░░░░░░░░░░░░░░░░░░░░░░`  
+**Coverage: 15 of 29 threats** across 3 use cases. `██████████████░░░░░░░░░░░░░░`  
 Full index in [COVERAGE.md](COVERAGE.md).
 <!-- coverage:end -->
 
