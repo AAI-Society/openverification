@@ -1,56 +1,75 @@
-# Verifiability Use-Case Stories
+# Verifiability use cases
 
-Illustrative, hypothetical scenarios that map real-world AI use cases onto the
-**Verifiability Matrix**. Each story claims a **Verifiability Tier** for a use
-case and shows the per-domain reasoning behind it. Together they act as a
-calibration corpus for the standard.
+This folder holds worked stories that show how a deployment maps onto the six
+verification domains and the four Verifiability Tiers. They are calibration
+material. They carry no normative force, and they are the fastest way to see
+how a Proof-of-Control claim is made and how an evaluator reads one.
 
-## The Verifiability Matrix
+## The six domains
 
-- **Six verification domains** (columns): Provenance, Authorization, Security,
-  Identity, Privacy, Portability.
-- **Four Verifiability Tiers** (rows): how strongly a claim is verified.
+Provenance, Privacy, Portability, Authorization, Identity, Security.
 
-### Verifiability Tiers
+## The four Verifiability Tiers
 
-- **Tier 1 (self-reported).** Asserted by the provider, e.g. model cards and
-  self-reported benchmarks.
-- **Tier 2 (independently evaluated).** Checked by a third party, e.g. external
-  evaluations and red-teaming.
-- **Tier 3 (open and reproducible).** Anyone can independently reproduce the
-  check, e.g. open weights and reproducible eval harnesses. Detection after the
-  fact.
-- **Tier 4 (self-enforcing).** Verification is enforced at serving time and
-  **fails closed**: an unverified action can't be served, not merely flagged
-  afterward, e.g. an attested serving gate.
+| Tier | Name | What it means |
+|---|---|---|
+| 1 | Assertion | The operator's word. Model cards, self-reported benchmarks. |
+| 2 | Attestation | A third party vouches. External evaluations, red-teaming. |
+| 3 | Trust-minimized | Anyone can verify, with no party to trust. |
+| 4 | Self-enforcing | The action cannot run without producing evidence. Verification is enforced at serving time, and unverified actions are refused. |
 
-Per-domain definitions of each tier are being refined by the working groups;
-treat the above as the general ladder.
+Tiers 1 and 2 both ask you to trust a party. Tiers 3 and 4 do not. That
+boundary is the one a claim turns on.
 
-## How the overall tier is set
+Two properties separate Tier 3 from Tier 4. At Tier 3 you can verify that the
+records you hold were not altered, and you are not guaranteed the record is
+whole. At Tier 4 an action cannot execute without producing evidence, so the
+absence of evidence means the action did not happen.
 
-A story's overall tier is the **highest bar the domains that carry the most
-risk** for that use case demand, not an average across all six. Low tiers on
-domains that don't carry risk are expected and fine.
+## How a tier is set
 
-## Tiers are ordinal, tied to their justification
+The overall tier is the highest bar the domains that carry the most risk for
+that use case demand, rather than an average across all six. A low tier on a
+domain that carries no risk in this deployment is a correct answer.
 
-A tier is a claim about verification strength, and it only means something
-alongside its reasoning. Don't average tiers or compare bare numbers across
-stories.
+Tiers are ordinal and tied to their justification. The reasoning matters more
+than the number.
 
-Two similar use cases can end up with different tier numbers, because submitters
-apply their own judgment and bring their own context. Read the "why," not the
-number. Different takes are expected, and open collaboration is encouraged, so
-bring them to the discussion.
+## Two submission types
 
-## Contributing
+**Scenario.** A hypothetical deployment, written for calibration. This is the
+default. Keep the disclaimer line and do not describe any real organization's
+actual current state.
 
-1. Copy `_TEMPLATE.md` and rename it to a short slug (e.g. `clinical-triage.md`).
-2. Fill in the frontmatter (`industry`, `use_case`, `claimed_tier`) and each
-   section, including **"Why not one tier down?"**
-3. One story per file. Keep the disclaimer line at the top.
-4. Open a PR.
+**Incident.** A documented event with primary sources, where the facts are
+published by the parties involved or by an investigator granted access. An
+incident submission argues about the tier the deployment was operating at and
+the tier its risky domains demanded, rather than a tier being claimed for a
+system.
 
-Stories are **hypothetical illustrations for calibration, not representations of
-any specific organization's current state.**
+An incident submission carries a higher bar. Every material fact needs a
+citation to a primary source, and where the sources disagree or leave a gap,
+say so rather than filling it.
+
+## Threat tagging
+
+Every submission tags the threats its deployment exercises, using the slugs in
+[THREATS.md](THREATS.md). Tagging does two things: it lets us maintain a
+coverage index showing which threats have a worked use case and which have
+none, and it gives you the source material for the "What Proof-of-Control does
+not verify here" section, which comes from the out-of-scope column of the
+threat vocabulary.
+
+## To contribute
+
+1. Copy [`_TEMPLATE.md`](_TEMPLATE.md) and rename it to a descriptive slug.
+2. Fill in the frontmatter, including `threats`.
+3. Complete every section, including the argument for why one tier down would
+   not do.
+4. Open a pull request with one scenario or one incident per file.
+
+## Coverage
+
+`COVERAGE.md` is generated from the `threats` frontmatter across this folder
+and shows which threats have a worked use case. Threats with no coverage are
+where a submission helps most.
