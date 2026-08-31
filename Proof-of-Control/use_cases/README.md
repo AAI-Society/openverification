@@ -1,7 +1,7 @@
 # Verifiability use cases
 
 This folder holds worked stories that show how a deployment maps onto the six
-verification domains and the four Verifiability Tiers. They are calibration
+verification domains and the four [Verifiability Tiers](https://github.com/AAI-Society/ov-poc-standard/blob/0e8829ad03547adf0d24968119d5ea5bd8a89e2c/0.1/en/0x10-C08-Verifiability-Tiers.md#L4). They are calibration
 material. They carry no normative force, and they are the fastest way to see
 how a Proof-of-Control claim is made and how an evaluator reads one.
 
