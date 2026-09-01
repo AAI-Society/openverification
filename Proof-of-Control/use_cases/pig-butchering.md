@@ -2,7 +2,13 @@
 industry: financial-services
 use_case: Pig butchering scam — scammer-controlled agent operates on victim-provided credentials to drain accounts
 business_impact: Irreversible account losses and platform liability for unauthorized agent execution
+submission_type: scenario
 claimed_tier: 4
+threats:
+  - identity-abuse
+  - approval-fatigue
+  - undisclosed-ai
+  - trust-opacity
 ---
 # Pig Butchering: Socially Engineered Credential Handoff Enabling Rogue Agent
 
@@ -67,6 +73,63 @@ entirely: no valid chain, no action.
 | Identity      | 4    | The legitimate account holder's identity must be cryptographically bound to any agent authorized to act on their behalf |
 | Privacy       | 2    | Standard financial privacy controls apply; the risk domain here is authorization, not data exposure |
 | Portability   | 1    | Not a primary risk domain for this use case |
+
+## Threats exercised
+| Threat | What it looks like here |
+|---|---|
+| `identity-abuse` | The scammer's agent acts under the victim's account, holding credentials that were handed over rather than stolen, and no delegation the account holder ever issued |
+| `approval-fatigue` | Weeks of cultivated trust are the attack. Where a delegation ceremony exists, the victim is walked through it by someone they believe is advising them |
+| `undisclosed-ai` | The victim consents to an "investment advisor" and not to an autonomous agent draining the account; what acts is never disclosed for what it is |
+| `trust-opacity` | The Tier 4 claim stands or falls on where the chain is rooted and who holds the signing key, neither of which a victim or a regulator can see unless disclosed |
+
+## What Proof-of-Control does not verify here
+- **The persuasion.** This is a social attack and the manipulation is entirely
+  out of scope. Proof-of-Control does not detect grooming, assess a
+  relationship, or judge whether a person is being deceived at the moment they
+  act.
+- **A delegation the victim was talked into issuing.** If the scammer walks the
+  victim through the ceremony from their own device and keys, the resulting
+  chain is cryptographically valid and the agent acts in bounds. Verification
+  covers control, not the quality of the judgement behind a grant. Conformance
+  here must not be read as anti-fraud certification.
+- **Whether the disclosure or the warning worked.** The claim gates on consent
+  and records it. It does not establish that the victim understood what they
+  authorized, or that a cooling-off prompt was noticed.
+- **Whether a cap or scope was set sensibly.** A grant capped too high is still
+  a grant, and an agent spending inside it produces no violation.
+- **Recovery of funds.** Fail-closed enforcement prevents an unauthorized agent
+  from executing. Where a valid delegation existed, the transfers settle and
+  nothing in this claim reverses them.
+- **Residual trust is disclosed, not eliminated.** Tier 4 narrows the blast
+  radius of successful manipulation. It does not remove the manipulation, and
+  it does not remove the parties a reader still has to trust.
+
+## Residual trust assumptions to disclose
+- **Root of credential issuance.** That the delegation chain is rooted in an
+  identity-proofed account holder rather than in whoever holds the account
+  credentials, and the assurance level of that proofing. A chain rooted in
+  credential possession lets a scammer with gifted credentials mint a
+  valid-looking delegation, and the claim degrades to Tier 2.
+- **Key custody.** That the signing key is client-side, device-bound,
+  hardware-backed or biometrically gated on the holder's own device, and
+  non-exportable. Platform-held or escrowed keys exercised on the user's behalf
+  after login collapse the delegation gate back into the authentication gate.
+  This is the single disclosure that decides whether the claim means anything.
+- **Attestation chain.** Version, freshness window and revocation policy, and
+  how fast a delegation is revoked once a victim reports the fraud. Pig
+  butchering victims often discover the fraud late, so the practical exposure
+  is measured in that lag, not in the revocation mechanism.
+- **Transparency log monitors.** Who monitors the log, and what happens if the
+  monitor set lapses, given that the absence of a valid delegation is the
+  evidence distinguishing a scammer's agent from the holder's own.
+- **Device and machine binding.** Any point where the attestation of the
+  holder's device and the attestation of the signing environment are assumed to
+  describe the same machine, including a device the scammer has been granted
+  remote access to.
+- **The intervention layer.** Warnings, cooling-off periods and scoped or
+  capped grants are what convert higher friction into fewer losses. They are
+  policy choices sitting outside the cryptography, and a reader is trusting the
+  platform to have made them well.
 
 ## Notes / open questions
 - This use case exposes a foundational gap: most financial platforms treat

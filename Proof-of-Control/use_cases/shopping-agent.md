@@ -2,7 +2,13 @@
 industry: e-commerce
 use_case: AI shopping agent completes purchases on behalf of a consumer
 business_impact: Increased chargebacks and fraud liability
+submission_type: scenario
 claimed_tier: 3
+threats:
+  - excessive-agency
+  - autonomy-creep
+  - unbounded-consumption
+  - evidence-repudiation
 ---
 # Consumer Shopping Agent Exceeds Authorized Purchase Scope
 
@@ -42,6 +48,61 @@ a regulator without any cooperation from the platform.
 | Identity      | 3    | Consumer must be able to prove the agent acting was the one they authorized, not a spoofed or substituted agent |
 | Privacy       | 2    | Purchase data is sensitive but third-party audit of authorization records is sufficient; open publication not required |
 | Portability   | 1    | Not a primary risk domain for this use case |
+
+## Threats exercised
+| Threat | What it looks like here |
+|---|---|
+| `excessive-agency` | The agent holds a saved payment card and can charge it for more than the one item and the one price the consumer authorized |
+| `autonomy-creep` | The agent widens its own search parameters and substitutes a "better" option, taking a decision the consumer never delegated |
+| `unbounded-consumption` | The $200 cap is the boundary that should have gated the transaction, and a $340 charge crosses it without a re-authorization step |
+| `evidence-repudiation` | In the chargeback dispute the only account of what the agent was permitted to do is the operator's own logs, so the consumer is contesting the platform's record with nothing of their own |
+
+## What Proof-of-Control does not verify here
+- **Whether the purchase was a good one.** The substituted item may genuinely
+  be better. Proof-of-Control evidences what the agent was authorized to do and
+  what it did; it does not price-check, compare products, or judge whether the
+  consumer would have approved had they been asked.
+- **Whether the authorized scope was set sensibly.** A $200 cap the consumer
+  set carelessly is still the cap. Proof-of-Control shows the boundary held or
+  did not. It does not tell you the boundary was the right one, and a purchase
+  inside an over-generous grant produces no violation.
+- **The merchant's and processor's own handling.** The evidence establishes
+  what the agent was permitted to charge. Whether the retailer captured the
+  right amount, or the processor settled it correctly, is outside the record.
+- **Delivery and fulfilment.** Verification covers the authorization and the
+  transaction. Whether the item arrives, matches its description, or is
+  returnable is not something a delegation credential speaks to.
+- **What a disputed charge meant.** The record settles whether the agent held a
+  valid grant for $340. Liability for the overcharge, and whether the consumer
+  is made whole, are commercial and regulatory questions.
+- **Prevention.** At Tier 3 the credential is checkable by any party after the
+  fact. The card has still been charged, and this claim does not refuse the
+  transaction at the moment it is attempted.
+
+## Residual trust assumptions to disclose
+- **Root of credential issuance.** Who issued the consumer's identity and the
+  delegation credential binding the agent to a spend scope, and how the
+  consumer was proofed. A credential minted by the shopping platform on the
+  strength of a logged-in session leaves the consumer relying on the same party
+  they are disputing.
+- **Key custody.** Whether the consumer holds the signing key for their own
+  grants, or the platform issues delegations on their behalf. If the platform
+  holds it, the independent verifiability the Tier 3 claim rests on is
+  cosmetic.
+- **Attestation chain.** Version, freshness window and revocation policy,
+  including how a reduced or withdrawn spend cap reaches an agent mid-session
+  and what the propagation window permits.
+- **Transparency log monitors.** Who monitors the log a card network or
+  regulator would check, and what happens if the monitor set lapses. An
+  unmonitored log can present different histories to the consumer and the
+  platform, which is exactly the dispute this use case is trying to settle.
+- **Agent to consumer binding.** Any point where the agent instance presenting
+  a credential is assumed to be the instance the consumer authorized, including
+  after an update, a migration or a restart on different infrastructure.
+- **Scope semantics.** That "under $200" means the same thing to the consumer,
+  the agent and the retailer: per item or per basket, before or after tax,
+  shipping and currency conversion. The cryptography binds a number, and the
+  parties are trusted to agree on what the number counts.
 
 ## Notes / open questions
 - Reasonable to argue Tier 4 if the use case involves high-value purchases or

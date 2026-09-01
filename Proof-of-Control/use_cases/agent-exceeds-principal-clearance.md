@@ -2,7 +2,12 @@
 industry: enterprise-software
 use_case: Legitimately deployed AI agent accesses data its human principal is not permitted to view
 business_impact: Silent compliance violations and regulatory exposure with no detectable access breach
+submission_type: scenario
 claimed_tier: 2
+threats:
+  - excessive-agency
+  - context-blind-authorization
+  - data-exfiltration
 ---
 # Authorized Agent Inheriting Permissions Beyond Its Human Principal's Clearance
 
@@ -52,6 +57,57 @@ directly observable.
 | Identity      | 2    | The agent-to-principal binding must be evaluable by an assessor, not merely asserted by the platform |
 | Privacy       | 2    | Whether restricted data categories are reachable by under-cleared agents must be independently assessed, as internal logs cannot reveal it |
 | Portability   | 1    | Not a primary risk domain for this use case |
+
+## Threats exercised
+| Threat | What it looks like here |
+|---|---|
+| `excessive-agency` | The agent's effective permission set is wider than the sales rep's own clearance, so it can reach data its principal cannot |
+| `context-blind-authorization` | The financial risk profile query is a valid call for the agent's credentials, made in a context (an outreach email for an uncleared rep) where it should not be permitted |
+| `data-exfiltration` | Restricted data crosses a clearance boundary into a sales workflow, without leaving the organization and without tripping any access control |
+
+## What Proof-of-Control does not verify here
+- **Whether the authorized boundary was drawn correctly.** This is the sharpest
+  limit at Tier 2. Proof-of-Control can show that an agent's queries stayed
+  inside its granted scope and that the scope is what the delegation records
+  say. It cannot tell you that scope should have been bounded by the
+  principal's clearance in the first place. That judgement is the assessor's.
+- **Whether the grant was too broad.** Over-permission is visible in the
+  records once someone compares them against clearance levels. Nothing in the
+  evidence flags it on its own.
+- **Whether the data classification is right.** If the financial risk profile
+  is not labelled as restricted, no boundary is crossed as far as the
+  deployment is concerned, and the records will look clean.
+- **The downstream use of what the agent retrieved.** Proof-of-Control
+  evidences the access and where the data flowed. It does not follow the
+  recommendation the agent generated into the email, the CRM, or the rep's
+  head.
+- **Controls that were asserted but never wired in.** The stated policy here is
+  that agents inherit their principals' permissions. If that policy exists only
+  in a document and nothing in the execution path enforces it, no evidence is
+  produced either way, and silence is indistinguishable from compliance. No
+  tier closes that gap. See the closing section of THREATS.md.
+
+## Residual trust assumptions to disclose
+- **Root of credential issuance.** The corporate identity provider that issues
+  both the rep's session and the agent's service credential. It is the sole
+  root here, and it is the same system whose scoping behaviour is in question.
+- **The clearance record itself.** That the HR or entitlements system holding
+  each principal's clearance level is accurate and current. An assessor
+  comparing agent scope against clearance is trusting that source completely.
+- **The assessor.** At Tier 2 a reader trusts the independent evaluator's
+  access, competence and independence, and trusts that the sample of
+  delegation records they examined was representative. There is no
+  cryptographic record they can re-derive without that cooperation.
+- **Attestation freshness and revocation.** How quickly a clearance change or a
+  revoked delegation propagates to the agents already provisioned under it, and
+  what a long propagation window permits in the meantime.
+- **Binding of agent to principal.** Any point where the agent's service
+  credential and the rep's session are assumed to represent the same principal,
+  since that link is what the whole clearance argument rests on.
+- **Retrieval layers outside the access-control path.** Where a vector store or
+  cache holds material derived from restricted sources, a reader is trusting
+  that its contents were scoped at write time, because query-time controls will
+  not see it.
 
 ## Notes / open questions
 - Reasonable people may place this higher. The Tier 3 argument: in a

@@ -2,7 +2,12 @@
 industry: financial-services
 use_case: Deepfake video or biometric used to pass liveness checks and authorize agent access
 business_impact: High-value fraudulent transfers with no recoverable authorization trail
+submission_type: scenario
 claimed_tier: 3
+threats:
+  - identity-abuse
+  - approval-fatigue
+  - evidence-repudiation
 ---
 # Deepfake Biometric Bypass Authorizing Agent Financial Transfers
 
@@ -54,6 +59,58 @@ platform's cooperation.
 | Identity      | 3    | The binding between the legitimate account holder and any authorized agent must be independently verifiable, not dependent on biometric liveness |
 | Privacy       | 2    | Standard financial privacy controls apply |
 | Portability   | 1    | Not a primary risk domain for this use case |
+
+## Threats exercised
+| Threat | What it looks like here |
+|---|---|
+| `identity-abuse` | A synthetic face passes the liveness check, and the token issued on the strength of it lets an agent act as a principal who authorized nothing |
+| `approval-fatigue` | The Arup pattern: a finance worker is walked through approvals by what appears to be his CFO and colleagues, so human oversight is present and defeated |
+| `evidence-repudiation` | After the transfers, the account holder and the institution have only the platform's own session logs, which record a successful check either way |
+
+## What Proof-of-Control does not verify here
+- **Whether the biometric was real.** Liveness and presentation-attack
+  detection are the deployment's problem and remain necessary. Proof-of-Control
+  does not inspect the video, score the artefact, or tell a genuine face from a
+  generated one. It relocates the question so that passing the check is no
+  longer sufficient to move money.
+- **The social engineering itself.** The deception on the call, the pressure
+  applied to the finance worker, and the human trust it exploited are all out
+  of scope. Proof-of-Control evidences the intent that was presented for
+  approval and the approval decisions taken; it does not judge why a person
+  approved.
+- **Whether an approval was well-judged.** A delegation issued by the genuine
+  account holder under manipulation is cryptographically valid. Verification
+  covers control, not the quality of the judgement behind a grant.
+- **What a disputed action meant.** Proof-of-Control settles whether a
+  delegation existed for the transfers and who it was rooted in. Arguments
+  about the significance of an action, or about liability for it, sit outside
+  the record.
+- **Recovery.** At Tier 3 the record is verifiable after the fact. The funds
+  have still moved, and nothing in this claim reverses a settled transfer.
+
+## Residual trust assumptions to disclose
+- **Root of credential issuance.** The identity-proofing performed at account
+  enrollment, and its assurance level. The delegation record is only as
+  meaningful as the enrollment it is rooted in, and enrollment here is
+  typically the same biometric pipeline the attack targets.
+- **Separation of the delegation key from the biometric session.** That the
+  signing key is held by the account holder on their own device and is not
+  released, escrowed or exercised by the platform on the strength of a passed
+  liveness check. If a passed check mints the delegation, the two events are
+  not separate and the claim degrades.
+- **Attestation chain.** Its version, freshness window and revocation policy,
+  including how quickly a delegation is revoked once fraud is reported and what
+  the window before revocation permits.
+- **Transparency log monitors.** Who watches the log that makes the absence of
+  a delegation checkable, and what an evaluator should conclude if the monitor
+  set lapses. Absence of a record is the load-bearing evidence in this
+  scenario, so an unmonitored log undermines the central argument.
+- **Device and machine binding.** Any point where the attestation of the
+  holder's device and the attestation of the signing environment are assumed to
+  describe the same machine.
+- **Hardware roots.** Where TEE-bound or secure-element keys are relied on, the
+  reader is trusting the silicon vendor's attestation root and its revocation
+  practice.
 
 ## Notes / open questions
 - This use case makes the strongest case for separating authentication
