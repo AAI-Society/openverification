@@ -1,6 +1,6 @@
 # Coverage index
 
-**0 of 29 threats have a worked use case.** 1 submissions.
+**10 of 29 threats have a worked use case.** 2 submissions.
 
 Generated from the `threats:` frontmatter across this folder. Do not
 edit by hand: run `python3 make_coverage.py`.
@@ -10,12 +10,12 @@ edit by hand: run `python3 make_coverage.py`.
 | Family | Covered | |
 |---|---|---|
 | Instruction and goal manipulation | 0/3 | `░░░░░░░░░░░░░░░░░░░░` |
-| Memory, knowledge, and supply chain | 0/4 | `░░░░░░░░░░░░░░░░░░░░` |
-| Identity, authority, and inter-agent trust | 0/4 | `░░░░░░░░░░░░░░░░░░░░` |
-| Tools, actions, and effects | 0/4 | `░░░░░░░░░░░░░░░░░░░░` |
-| Data exposure | 0/1 | `░░░░░░░░░░░░░░░░░░░░` |
-| Autonomy, drift, and lifecycle | 0/3 | `░░░░░░░░░░░░░░░░░░░░` |
-| Record integrity and resilience | 0/5 | `░░░░░░░░░░░░░░░░░░░░` |
+| Memory, knowledge, and supply chain | 1/4 | `█████░░░░░░░░░░░░░░░` |
+| Identity, authority, and inter-agent trust | 4/4 | `████████████████████` |
+| Tools, actions, and effects | 1/4 | `█████░░░░░░░░░░░░░░░` |
+| Data exposure | 1/1 | `████████████████████` |
+| Autonomy, drift, and lifecycle | 1/3 | `███████░░░░░░░░░░░░░` |
+| Record integrity and resilience | 2/5 | `████████░░░░░░░░░░░░` |
 | Human oversight and disclosure | 0/2 | `░░░░░░░░░░░░░░░░░░░░` |
 | Output quality and availability | 0/3 | `░░░░░░░░░░░░░░░░░░░░` |
 
@@ -31,23 +31,13 @@ A submission covering one of these helps most.
 | Memory, knowledge, and supply chain | `memory-poisoning` | Memory and context poisoning |
 | Memory, knowledge, and supply chain | `rag-weakness` | Vector, embedding or retrieval weakness |
 | Memory, knowledge, and supply chain | `model-poisoning` | Training-time data or model poisoning |
-| Memory, knowledge, and supply chain | `supply-chain-poisoning` | Poisoned supply chain, tools or MCP |
-| Identity, authority, and inter-agent trust | `identity-abuse` | Identity and privilege abuse or spoofing |
-| Identity, authority, and inter-agent trust | `context-blind-authorization` | Context-blind authorization |
-| Identity, authority, and inter-agent trust | `excessive-agency` | Excessive agency or over-permission |
-| Identity, authority, and inter-agent trust | `insecure-inter-agent-comms` | Insecure inter-agent communication |
 | Tools, actions, and effects | `tool-misuse` | Tool misuse |
-| Tools, actions, and effects | `unexpected-code-execution` | Unexpected code execution |
 | Tools, actions, and effects | `unsafe-actuation` | Unsafe actuation |
 | Tools, actions, and effects | `improper-output-handling` | Improper output handling |
-| Data exposure | `data-exfiltration` | Sensitive data exfiltration |
 | Autonomy, drift, and lifecycle | `autonomy-creep` | Autonomy creep |
-| Autonomy, drift, and lifecycle | `behavioral-drift` | Rogue agents or behavioral drift |
 | Autonomy, drift, and lifecycle | `scope-creep-lifecycle` | Scope creep and lifecycle |
-| Record integrity and resilience | `audit-tampering` | Audit tampering |
 | Record integrity and resilience | `cascading-failure` | Cascading failure or fail-open |
 | Record integrity and resilience | `coverage-decay` | Coverage decay |
-| Record integrity and resilience | `evidence-repudiation` | Evidence repudiation |
 | Record integrity and resilience | `trust-opacity` | Trust opacity |
 | Human oversight and disclosure | `approval-fatigue` | Human-agent trust exploitation or approval fatigue |
 | Human oversight and disclosure | `undisclosed-ai` | Undisclosed AI or absent consent |
@@ -65,23 +55,23 @@ A submission covering one of these helps most.
 | Memory, knowledge, and supply chain | `memory-poisoning` | — |
 | Memory, knowledge, and supply chain | `rag-weakness` | — |
 | Memory, knowledge, and supply chain | `model-poisoning` | — |
-| Memory, knowledge, and supply chain | `supply-chain-poisoning` | — |
-| Identity, authority, and inter-agent trust | `identity-abuse` | — |
-| Identity, authority, and inter-agent trust | `context-blind-authorization` | — |
-| Identity, authority, and inter-agent trust | `excessive-agency` | — |
-| Identity, authority, and inter-agent trust | `insecure-inter-agent-comms` | — |
+| Memory, knowledge, and supply chain | `supply-chain-poisoning` | `frontier-lab-agent-collective` |
+| Identity, authority, and inter-agent trust | `identity-abuse` | `frontier-lab-agent-collective` |
+| Identity, authority, and inter-agent trust | `context-blind-authorization` | `frontier-lab-agent-collective` |
+| Identity, authority, and inter-agent trust | `excessive-agency` | `frontier-lab-agent-collective` |
+| Identity, authority, and inter-agent trust | `insecure-inter-agent-comms` | `frontier-lab-agent-collective` |
 | Tools, actions, and effects | `tool-misuse` | — |
-| Tools, actions, and effects | `unexpected-code-execution` | — |
+| Tools, actions, and effects | `unexpected-code-execution` | `frontier-lab-agent-collective` |
 | Tools, actions, and effects | `unsafe-actuation` | — |
 | Tools, actions, and effects | `improper-output-handling` | — |
-| Data exposure | `data-exfiltration` | — |
+| Data exposure | `data-exfiltration` | `frontier-lab-agent-collective` |
 | Autonomy, drift, and lifecycle | `autonomy-creep` | — |
-| Autonomy, drift, and lifecycle | `behavioral-drift` | — |
+| Autonomy, drift, and lifecycle | `behavioral-drift` | `frontier-lab-agent-collective` |
 | Autonomy, drift, and lifecycle | `scope-creep-lifecycle` | — |
-| Record integrity and resilience | `audit-tampering` | — |
+| Record integrity and resilience | `audit-tampering` | `frontier-lab-agent-collective` |
 | Record integrity and resilience | `cascading-failure` | — |
 | Record integrity and resilience | `coverage-decay` | — |
-| Record integrity and resilience | `evidence-repudiation` | — |
+| Record integrity and resilience | `evidence-repudiation` | `frontier-lab-agent-collective` |
 | Record integrity and resilience | `trust-opacity` | — |
 | Human oversight and disclosure | `approval-fatigue` | — |
 | Human oversight and disclosure | `undisclosed-ai` | — |
@@ -94,3 +84,4 @@ A submission covering one of these helps most.
 | Use case | Threats tagged |
 |---|---|
 | `credit-decisioning` | **none tagged** |
+| `frontier-lab-agent-collective` | `insecure-inter-agent-comms`, `audit-tampering`, `excessive-agency`, `context-blind-authorization`, `identity-abuse`, `unexpected-code-execution`, `data-exfiltration`, `supply-chain-poisoning`, `behavioral-drift`, `evidence-repudiation` |
