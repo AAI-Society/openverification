@@ -123,6 +123,7 @@ rather than an average across all six.
   <!--aais-allow--> Proving the inference itself (zkML) was raised as not
   currently feasible; this example deliberately relies on attested, fail-closed
   serving plus an audit log, and not on a proof of the computation.
-- Originally submitted before the threat vocabulary and the v2 template existed.
-  Retrofitted by the Society. The scenario, the tier argument and the domain
-  reasoning are the original author's.
+- Originally submitted by Mo Sadek (GitHub @SomeGuyNamedMo) in #1, before the
+  threat vocabulary and the v2 template existed. Retrofitted by the Society, with
+  the scenario, the tier argument and the domain reasoning unchanged from the
+  original.
