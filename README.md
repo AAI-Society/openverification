@@ -4,25 +4,25 @@
 
 ## What is Open Verification?
 
-Open Verification is open, independent verification of what a system *actually did*, where both the method and the evidence are open to inspection. Instead of taking a vendor's claim on trust, anyone who needs to verify a system's behavior can check it themselves — without privileged access and without trusting the operator.
+In open verification, the root of trust is a mechanism anyone can verify, not a party anyone must believe. Open verification carries the ethos of open source software into the agentic era, extending it from inspecting source code to verifying the actions agents take in the agentic stack. It is a category of approaches that is purpose-built for the agentic age, where deployment of non-deterministic agents requires mechanisms that remove the need to trust a single gatekeeper.
 
 **Proof-of-Control** is the open-verification approach this standard defines for AI agents. It produces a continuously verifiable chain of custody: tamper-evident evidence of what an agent did — the data it touched and the actions it took — guaranteeing the *integrity* of what happened, not the correctness of what the agent produced.
 
 ## Why it matters
 
-AI is moving from systems that answer to agents that act. Every boundary an agent crosses — a database, another company's system, a payment rail, a medical record — is a place where evidence of what it did goes missing. Today, the only account of what happened is usually the system's own, and that account can be mistaken, manipulated, or rewritten after the fact. This is the **Verifiability Gap**: the absence of evidence of what an AI system did.
+AI is moving from systems that answer to agents that act. Every boundary an agent crosses — a database, another company's system, a payment rail, a medical record — is a place where evidence of what it did goes missing. Today, the only account of what happened is usually the system's own, and that account can be mistaken, manipulated, or rewritten after the fact. This is the **Verifiability Gap**: the widening distance between what AI agents do and anyone's ability to openly verify that they stayed within the controls they were given.
 
-Enterprises can't demonstrate to their boards what their agents did. Regulators can't verify that a high-risk system operated within authorized parameters. Insurers can't underwrite what they can't audit. Proof-of-Control closes that gap with evidence anyone can check.
+Enterprises cannot demonstrate to their boards what their agents did. Regulators cannot verify that a high-risk system operated within authorized parameters. Insurers cannot underwrite what they cannot audit. Proof-of-Control closes that gap with evidence anyone can verify.
 
 ## The core of the standard
 
 - **Six domains of verification** — what evidence is produced about: **Provenance, Privacy, Portability, Authorization, Identity, Security**.
-- **Four Verifiability Tiers** — how independently the evidence can be verified, i.e., who you must trust:
+- **Four Verifiability Tiers** — how openly the evidence can be verified, i.e., who you must trust:
   1. **Assertion** — the operator's word
   2. **Attestation** — a third party vouches
-  3. **Independently verifiable** — anyone can check; no trusted party required
-  4. **Self-enforcing** — verification is built into operation; the system can't run if integrity breaks
-- **The binary threshold** — a system has Proof-of-Control or it doesn't. The line falls between Tiers 2 and 3: below it, authenticated documentation; above it, independently verifiable evidence.
+  3. **Trust-minimized** — anyone can verify with published tools; the parties its soundness rests on are disclosed rather than removed
+  4. **Self-enforcing** — verification is built into operation; the system cannot run if integrity breaks
+- **The binary threshold** — a system has Proof-of-Control or it does not. The line falls between Tiers 2 and 3: below it, authenticated documentation; above it, openly verifiable evidence.
 - **Four evidence properties** — evidence must be **binary, contemporaneous, tamper-evident, and transparent**.
 
 The standard is technology-neutral (it defines what the evidence must be, not which mechanism produces it), vendor-neutral, and designed to complement — not replace — existing frameworks like NIST AI RMF, ISO/IEC 42001, SOC 2, MAESTRO, and OWASP.

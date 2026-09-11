@@ -15,7 +15,7 @@ Provenance, Privacy, Portability, Authorization, Identity, Security.
 |---|---|---|
 | 1 | Assertion | The operator's word. Model cards, self-reported benchmarks. |
 | 2 | Attestation | A third party vouches. External evaluations, red-teaming. |
-| 3 | Trust-minimized | Anyone can verify, with no party to trust. |
+| 3 | Trust-minimized | Anyone can verify; the parties its soundness rests on are disclosed rather than removed. |
 | 4 | Self-enforcing | The action cannot run without producing evidence. Verification is enforced at serving time, and unverified actions are refused. |
 
 Tiers 1 and 2 both ask you to trust a party. Tiers 3 and 4 do not. That

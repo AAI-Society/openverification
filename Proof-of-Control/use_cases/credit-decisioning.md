@@ -43,9 +43,9 @@ not an average across all six.
 
 | Domain        | Tier | Why |
 |---------------|------|-----|
-| Provenance    | 4 | A live gate verifies which model and config is about to serve and blocks issuance if it isn't the approved one. This is the driver. |
+| Provenance    | 4 | A live gate verifies which model and config is about to serve and blocks issuance if it is not the approved one. This is the driver. |
 | Authorization | 4 | Only the approved model in the approved configuration is permitted to serve; anything else means the decision cannot be issued. |
-| Security      | 3 | Adversarial setting (applicants game scores); pipeline integrity is independently verifiable but not fully fail-closed on every vector. |
+| Security      | 3 | Adversarial setting (applicants game scores); pipeline integrity is openly verifiable but not fully fail-closed on every vector. |
 | Identity      | 3 | Each issued decision binds to an accountable model and operator identity. |
 | Privacy       | 2 | Sensitive financial PII, regulated; handled by data controls and third-party assessment rather than an enforcement gate. |
 | Portability   | 1 | Whether the decision is portable across systems is not what makes it verifiable; self-reported. |
