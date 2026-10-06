@@ -1,13 +1,14 @@
 """Validate the documented Markdown shape of use-case stories.
 
 This is a structural check, not a judgment about tier reasoning, claim truth, or
-conformance. Frontmatter support is intentionally limited to the scalar
-``key: value`` form used by this repository's template.
+conformance. Frontmatter supports the template's scalars and indented block
+lists for threats and incident sources; this is not a general YAML parser.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import sys
 from collections.abc import Sequence
@@ -15,39 +16,66 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 USE_CASES_DIR = REPO_ROOT / "Proof-of-Control" / "use_cases"
-EXCLUDED_FILES = {"README.md", "_TEMPLATE.md"}
-REQUIRED_FIELDS = ("industry", "use_case", "claimed_tier")
+EXCLUDED_FILES = {"README.md", "_TEMPLATE.md", "THREATS.md", "COVERAGE.md"}
+REQUIRED_FIELDS = ("industry", "use_case", "submission_type", "claimed_tier", "threats")
 REQUIRED_HEADINGS = (
     "Scenario",
     "Why not one tier down?",
     "Tier by domain",
+    "Threats exercised",
+    "What Proof-of-Control does not verify here",
+    "Residual trust assumptions to disclose",
     "Notes / open questions",
 )
 DOMAINS = (
     "Provenance",
-    "Authorization",
-    "Security",
-    "Identity",
     "Privacy",
     "Portability",
+    "Authorization",
+    "Identity",
+    "Security",
 )
 DISCLAIMER = (
     "Illustrative, hypothetical scenario for calibration. Not necessarily "
     "indicative of any specific organization's current state."
 )
+INCIDENT_DISCLAIMER = (
+    "Documented incident. Facts are drawn from the sources listed in the frontmatter."
+)
+THREAT_SLUGS = set(
+    re.findall(
+        r"^\|\s*`([a-z0-9-]+)`\s*\|",
+        (USE_CASES_DIR / "THREATS.md").read_text(encoding="utf-8"),
+        re.MULTILINE,
+    )
+)
+# Only the unchanged founding story is exempt while upstream PR #12 retrofits it.
+LEGACY_CREDIT_SHA256 = (
+    "ff99a18c036ab07903913adeefaebb9a2f783b90baa24551d3296b51c5f25f64"
+)
 
 FIELD_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*):[ \t]*(.*)$")
+LIST_ITEM_RE = re.compile(r"^ +-[ \t]+(.+?)\s*$")
 CLAIMED_RE = re.compile(r"^##\s+Claimed tier:\s+Tier\s+([1-4])\s*$")
 H1_RE = re.compile(r"^#\s+(?!#)(.+?)\s*$")
 FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 TABLE_DELIMITER_RE = re.compile(r"^:?-+:?$")
 COMMENT_RE = re.compile(r"<!--.*?(?:-->|$)", re.DOTALL)
 PLACEHOLDER_RE = re.compile(
-    r"<(?:sector(?:,[^>]*)?|one line(?::[^>]*)?|1-4|short title[^>]*|N(?:-1)?)>",
+    r"<(?:sector(?:,[^>]*)?|one line(?::[^>]*)?|1-4|short title[^>]*|N(?:-1)?|title|url)>"
+    r"|\bTier N(?:-1)?\b|^# The title of your use case$",
     re.IGNORECASE,
+)
+TEMPLATE_PROMPTS = tuple(
+    " ".join(prompt.split())
+    for prompt in re.findall(
+        r"(?m)^\*([^*]+)\*$",
+        (USE_CASES_DIR / "_TEMPLATE.md").read_text(encoding="utf-8"),
+    )
 )
 
 Error = tuple[int, str]
+FieldValue = str | list[str]
 
 
 def is_indented_code(line: str) -> bool:
@@ -107,13 +135,13 @@ def blockquote_content(line: str) -> str:
     return content.removeprefix(" ")
 
 
-def table_cells(line: str) -> tuple[str, str, str] | None:
+def table_cells(line: str, columns: int = 3) -> tuple[str, ...] | None:
     if not line.lstrip().startswith("|"):
         return None
-    cells = line.strip().strip("|").split("|", 2)
-    if len(cells) != 3:
+    cells = re.split(r"(?<!\\)\|", line.strip().removeprefix("|").removesuffix("|"))
+    if len(cells) != columns:
         return None
-    return normalize(cells[0]), normalize(cells[1]), normalize(cells[2])
+    return tuple(normalize(cell) for cell in cells)
 
 
 def section(
@@ -133,9 +161,19 @@ def section(
     return body
 
 
+def unquote(value: str, number: int, errors: list[Error]) -> str:
+    value = value.strip()
+    if value.startswith(("'", '"')):
+        if len(value) < 2 or value[-1] != value[0]:
+            errors.append((number, "unclosed quoted frontmatter value"))
+        else:
+            return value[1:-1]
+    return value
+
+
 def parse_frontmatter(
     lines: Sequence[str],
-) -> tuple[list[Error], int | None, dict[str, tuple[str, int]]]:
+) -> tuple[list[Error], int | None, dict[str, tuple[FieldValue, int]]]:
     if not lines or lines[0].lstrip("\ufeff").strip() != "---":
         return [(1, "missing opening frontmatter delimiter '---'")], None, {}
     end = next(
@@ -146,71 +184,164 @@ def parse_frontmatter(
         return [(1, "frontmatter is missing its closing '---'")], None, {}
 
     errors: list[Error] = []
-    fields: dict[str, tuple[str, int]] = {}
+    fields: dict[str, tuple[FieldValue, int]] = {}
+    # ponytail: template scalars and block lists; use YAML if nested values become needed.
+    list_key: str | None = None
     for number, line in enumerate(lines[1 : end - 1], start=2):
         if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if item := LIST_ITEM_RE.fullmatch(line):
+            if list_key is None:
+                errors.append((number, "list item must belong to threats or sources"))
+            else:
+                values = fields[list_key][0]
+                assert isinstance(values, list)
+                values.append(unquote(item.group(1), number, errors))
             continue
         match = FIELD_RE.match(line)
         if not match:
             errors.append(
-                (number, "unsupported frontmatter syntax; expected 'key: scalar'")
+                (
+                    number,
+                    "unsupported frontmatter syntax; use scalars or indented block lists",
+                )
             )
+            list_key = None
             continue
-        key, value = match.group(1), match.group(2).strip().strip("'\"").strip()
+        key, value = match.group(1), unquote(match.group(2), number, errors)
+        list_key = None
         if key in fields:
             errors.append((number, f"duplicate frontmatter field '{key}'"))
         else:
-            fields[key] = value, number
+            if key in {"threats", "sources"}:
+                fields[key] = [], number
+                if match.group(2).strip():
+                    errors.append((number, f"{key} must use an indented block list"))
+                else:
+                    list_key = key
+            else:
+                fields[key] = value, number
 
-    for key in REQUIRED_FIELDS:
+    submission_type = fields.get("submission_type", ("scenario", 1))[0]
+    required: tuple[str, ...] = ("industry", "use_case", "submission_type", "threats")
+    required += (
+        ("observed_tier", "required_tier", "sources")
+        if submission_type == "incident"
+        else ("claimed_tier",)
+    )
+    for key in required:
         if key not in fields:
             errors.append((1, f"missing required frontmatter field '{key}'"))
-        elif not fields[key][0]:
-            errors.append(
-                (fields[key][1], f"frontmatter field '{key}' must not be blank")
+        else:
+            required_value, number = fields[key]
+            if not required_value or (
+                isinstance(required_value, str) and not required_value.strip()
+            ):
+                errors.append((number, f"frontmatter field '{key}' must not be blank"))
+    if submission_type not in {"scenario", "incident"}:
+        errors.append(
+            (
+                fields.get("submission_type", ("", 1))[1],
+                "submission_type must be scenario or incident",
             )
+        )
+    incompatible = (
+        ("claimed_tier",)
+        if submission_type == "incident"
+        else ("observed_tier", "required_tier")
+    )
+    for key in incompatible:
+        if key in fields:
+            errors.append(
+                (fields[key][1], f"{key} is not used for {submission_type} submissions")
+            )
+    for key in ("claimed_tier", "observed_tier", "required_tier"):
+        if key in fields:
+            tier_value, number = fields[key]
+            if not isinstance(tier_value, str) or not re.fullmatch(
+                r"[1-4]", tier_value
+            ):
+                errors.append((number, f"{key} must be an integer from 1 to 4"))
+    for key, (field_value, number) in fields.items():
+        if isinstance(field_value, str) and (
+            PLACEHOLDER_RE.search(field_value)
+            or field_value == "One line on what the AI system does"
+        ):
+            errors.append(
+                (number, f"frontmatter field '{key}' contains a template placeholder")
+            )
+    if "sources" in fields:
+        values, number = fields["sources"]
+        assert isinstance(values, list)
+        for value in values:
+            if not re.search(r"https?://[^\s<>]+", value) or PLACEHOLDER_RE.search(
+                value
+            ):
+                errors.append(
+                    (
+                        number,
+                        "each source must contain an HTTP(S) URL and no placeholders",
+                    )
+                )
     return errors, end, fields
 
 
-def validate_table(
-    visible: Sequence[tuple[int, str]], heading_line: int
-) -> list[Error]:
+def table_rows(
+    visible: Sequence[tuple[int, str]], heading_line: int, headers: tuple[str, ...]
+) -> tuple[list[Error], list[tuple[int, tuple[str, ...]]]]:
     body = section(visible, heading_line, keep_blank=True)
     header = next(
         (
             i
             for i, (_, line) in enumerate(body)
-            if table_cells(line) == ("Domain", "Tier", "Why")
+            if table_cells(line, len(headers)) == headers
         ),
         None,
     )
     if header is None:
-        return [(heading_line, "tier-by-domain Markdown table is missing")]
+        label = "tier-by-domain" if headers[0] == "Domain" else "threats-exercised"
+        return [(heading_line, f"{label} Markdown table is missing")], []
+    label = "domain" if headers[0] == "Domain" else "threat"
     header_line = body[header][0]
     if header + 1 >= len(body) or body[header + 1][0] != header_line + 1:
-        return [(body[header][0], "domain table separator is missing")]
+        return [(body[header][0], f"{label} table separator is missing")], []
 
     separator_line, separator_text = body[header + 1]
-    separator = separator_text.strip().strip("|").split("|", 2)
-    valid_separator = (
-        separator_text.lstrip().startswith("|")
-        and len(separator) == 3
-        and all(TABLE_DELIMITER_RE.fullmatch(value.strip()) for value in separator)
+    separator = table_cells(separator_text, len(headers))
+    valid_separator = separator is not None and all(
+        TABLE_DELIMITER_RE.fullmatch(value.strip()) for value in separator
     )
     if not valid_separator:
-        return [(separator_line, "domain table separator is invalid")]
+        return [(separator_line, f"{label} table separator is invalid")], []
 
-    errors: list[Error] = []
-    expected = {domain.casefold(): domain for domain in DOMAINS}
-    seen: set[str] = set()
+    rows: list[tuple[int, tuple[str, ...]]] = []
     next_line = separator_line + 1
     for number, line in body[header + 2 :]:
-        if number != next_line:
+        if number != next_line or not line.strip():
             break
-        cells = table_cells(line)
+        cells = table_cells(line, len(headers))
         if cells is None:
+            if line.lstrip().startswith("|"):
+                return [
+                    (number, f"{label} table row must have {len(headers)} cells")
+                ], rows
             break
         next_line += 1
+        rows.append((number, cells))
+    return [], rows
+
+
+def validate_table(
+    visible: Sequence[tuple[int, str]], heading_line: int, *, incident: bool = False
+) -> list[Error]:
+    errors, rows = table_rows(visible, heading_line, ("Domain", "Tier", "Why"))
+    if errors:
+        return errors
+
+    expected = {domain.casefold(): domain for domain in DOMAINS}
+    seen: set[str] = set()
+    order: list[str] = []
+    for number, cells in rows:
         domain, tier, reason = cells
         key = domain.casefold()
         if key not in expected:
@@ -221,8 +352,16 @@ def validate_table(
             errors.append((number, f"duplicate domain row '{name}'"))
             continue
         seen.add(key)
-        if not re.fullmatch(r"[1-4]", tier):
-            errors.append((number, f"{name} tier must be an integer from 1 to 4"))
+        order.append(name)
+        tier_pattern = r"[1-4](?:\s*→\s*[1-4])?" if incident else r"[1-4]"
+        if not re.fullmatch(tier_pattern, tier) and tier != "not claimed":
+            pair = ", an observed → required pair," if incident else ""
+            errors.append(
+                (
+                    number,
+                    f"{name} tier must be an integer from 1 to 4{pair} or 'not claimed'",
+                )
+            )
         if not reason:
             errors.append((number, f"{name} rationale must not be blank"))
 
@@ -231,6 +370,36 @@ def validate_table(
         for key, domain in expected.items()
         if key not in seen
     )
+    if len(order) == len(DOMAINS) and tuple(order) != DOMAINS:
+        errors.append(
+            (
+                heading_line,
+                "domain rows must follow canonical order: " + ", ".join(DOMAINS),
+            )
+        )
+    return errors
+
+
+def validate_threats(
+    visible: Sequence[tuple[int, str]], heading_line: int, tags: Sequence[str]
+) -> list[Error]:
+    errors, rows = table_rows(
+        visible, heading_line, ("Threat", "What it looks like here")
+    )
+    seen: set[str] = set()
+    for number, cells in rows:
+        slug, reason = cells
+        if slug in seen:
+            errors.append((number, f"duplicate threat row '{slug}'"))
+        seen.add(slug)
+        if slug not in THREAT_SLUGS:
+            errors.append((number, f"unknown threat slug '{slug}'"))
+        if not reason:
+            errors.append((number, f"{slug} threat description must not be blank"))
+    if seen != set(tags):
+        errors.append(
+            (heading_line, "Threats exercised rows must match frontmatter threats")
+        )
     return errors
 
 
@@ -241,6 +410,14 @@ def validate_file(path: Path) -> list[Error]:
         return [(1, f"cannot read UTF-8 Markdown: {error}")]
 
     errors, frontmatter_end, fields = parse_frontmatter(lines)
+    incident = fields.get("submission_type", ("scenario", 1))[0] == "incident"
+    tags_value, tags_line = fields.get("threats", ([], 1))
+    tags = tags_value if isinstance(tags_value, list) else []
+    if len(tags) != len(set(tags)):
+        errors.append((tags_line, "duplicate frontmatter threat slugs"))
+    for tag in tags:
+        if tag not in THREAT_SLUGS:
+            errors.append((tags_line, f"unknown threat slug '{tag}'"))
     visible = [
         (number, line)
         for number, line in visible_lines(lines)
@@ -277,11 +454,12 @@ def validate_file(path: Path) -> list[Error]:
     quote = " ".join(
         line.strip() for _, line in visible_lines(quote_source) if line.strip()
     )
-    if DISCLAIMER not in normalize(quote):
+    disclaimer = INCIDENT_DISCLAIMER if incident else DISCLAIMER
+    if disclaimer not in normalize(quote):
         errors.append(
             (
                 (frontmatter_end or 0) + 1,
-                "missing the hypothetical-scenario disclaimer before sections",
+                f"missing the {'documented-incident' if incident else 'hypothetical-scenario'} disclaimer before sections",
             )
         )
 
@@ -297,15 +475,37 @@ def validate_file(path: Path) -> list[Error]:
             for number in occurrences[1:]
         )
 
-    frontmatter_tier: int | None = None
-    if "claimed_tier" in fields:
-        value, value_line = fields["claimed_tier"]
-        if re.fullmatch(r"[1-4]", value):
-            frontmatter_tier = int(value)
-        else:
-            errors.append((value_line, "claimed_tier must be an integer from 1 to 4"))
-
-    if len(claimed) != 1 or claimed[0][1] is None:
+    if incident:
+        if claimed:
+            errors.append(
+                (
+                    claimed[0][0],
+                    "incidents use Tier observed and Tier the risky domains demanded headings",
+                )
+            )
+        for heading, key in (
+            ("Tier observed", "observed_tier"),
+            ("Tier the risky domains demanded", "required_tier"),
+        ):
+            matches = [
+                (number, title)
+                for title, numbers in headings.items()
+                if title == heading or title.startswith(heading + ":")
+                for number in numbers
+            ]
+            if len(matches) != 1:
+                errors.append((1, f"expected one '## {heading}' heading"))
+                continue
+            number, title = matches[0]
+            heading_lines[heading] = number
+            if title != heading:
+                value = title.removeprefix(heading + ":").strip()
+                tier = fields.get(key, ("", 1))[0]
+                if value != f"Tier {tier}" or not re.fullmatch(r"Tier [1-4]", value):
+                    errors.append(
+                        (number, f"{heading} heading must match frontmatter {key}")
+                    )
+    elif len(claimed) != 1 or claimed[0][1] is None:
         errors.append(
             (
                 claimed[0][0] if claimed else 1,
@@ -313,23 +513,34 @@ def validate_file(path: Path) -> list[Error]:
             )
         )
     else:
-        number, tier = claimed[0]
+        number, claimed_tier = claimed[0]
         heading_lines["Claimed tier"] = number
-        if frontmatter_tier is not None and tier != frontmatter_tier:
+        frontmatter_tier = fields.get("claimed_tier", ("", 1))[0]
+        if frontmatter_tier and str(claimed_tier) != frontmatter_tier:
             message = (
-                f"heading Tier {tier} does not match frontmatter "
+                f"heading Tier {claimed_tier} does not match frontmatter "
                 f"claimed_tier {frontmatter_tier}"
             )
             errors.append((number, message))
 
-    for heading in ("Scenario", "Claimed tier", "Why not one tier down?"):
-        if heading in heading_lines and not section(visible, heading_lines[heading]):
+    for heading, number in heading_lines.items():
+        content = section(visible, number)
+        if not content:
+            errors.append((number, f"section '## {heading}' must not be blank"))
+        prose = " ".join(line.strip() for _, line in content)
+        if any(prompt in prose.replace("*", "") for prompt in TEMPLATE_PROMPTS):
             errors.append(
-                (heading_lines[heading], f"section '## {heading}' must not be blank")
+                (number, f"section '## {heading}' still contains a template prompt")
             )
 
     if "Tier by domain" in heading_lines:
-        errors.extend(validate_table(visible, heading_lines["Tier by domain"]))
+        errors.extend(
+            validate_table(visible, heading_lines["Tier by domain"], incident=incident)
+        )
+    if "Threats exercised" in heading_lines:
+        errors.extend(
+            validate_threats(visible, heading_lines["Threats exercised"], tags)
+        )
     for number, line in visible:
         if match := PLACEHOLDER_RE.search(line):
             errors.append(
@@ -361,11 +572,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("No use-case story Markdown files found.", file=sys.stderr)
         return 2
 
-    findings = [
-        (story, line, message)
-        for story in stories
-        for line, message in validate_file(story)
-    ]
+    findings: list[tuple[Path, int, str]] = []
+    legacy = 0
+    for story in stories:
+        if story == USE_CASES_DIR / "credit-decisioning.md":
+            try:
+                unchanged = (
+                    hashlib.sha256(story.read_bytes()).hexdigest()
+                    == LEGACY_CREDIT_SHA256
+                )
+            except OSError:
+                unchanged = False
+            if unchanged:
+                legacy += 1
+                print(
+                    "warning: unchanged v1 credit-decisioning.md exempt pending upstream PR #12; not v2-validated",
+                    file=sys.stderr,
+                )
+                continue
+        findings.extend(
+            (story, line, message) for line, message in validate_file(story)
+        )
     if findings:
         for path, line, message in findings:
             try:
@@ -379,8 +606,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 1
 
-    noun = "story" if len(stories) == 1 else "stories"
-    print(f"Validated the documented shape of {len(stories)} use-case {noun}.")
+    count = len(stories) - legacy
+    noun = "story" if count == 1 else "stories"
+    print(
+        f"Validated the documented v2 shape of {count} use-case {noun}; {legacy} unchanged legacy exemption(s)."
+    )
     return 0
 
 

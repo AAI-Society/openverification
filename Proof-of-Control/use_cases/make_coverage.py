@@ -32,9 +32,20 @@ def submissions():
         if f.name in SKIP:
             continue
         text = f.read_text()
-        fm = text.split("---")[1] if text.startswith("---") else ""
-        block = re.search(r"threats:\s*\n((?:\s*-\s*\S+\n)+)", fm)
-        tags = re.findall(r"-\s*([a-z0-9-]+)", block.group(1)) if block else []
+        match = re.match(r"\A\ufeff?---[ \t]*\n(.*?)\n---[ \t]*(?:\n|$)", text, re.S)
+        fm = match.group(1) if match else ""
+        tags, in_threats = [], False
+        for line in fm.splitlines():
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            if line.startswith("threats:"):
+                in_threats = True
+            elif line[0].isspace() and in_threats:
+                item = re.match(r"^ +-[ \t]+(.+?)\s*$", line)
+                if item:
+                    tags.append(item.group(1).strip().strip("'\""))
+            else:
+                in_threats = False
         by_case[f.stem] = tags
         for slug in tags:
             used[slug].append(f.stem)

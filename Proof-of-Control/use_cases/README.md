@@ -93,6 +93,31 @@ disclaimer becomes *"Documented incident. Facts are drawn from the sources
 listed in the frontmatter."* And the single "Claimed tier" heading becomes two:
 **Tier observed** and **Tier the risky domains demanded**.
 
+### Check your submission
+
+From the repository root, run `python3 scripts/validate_use_cases.py`, or pass
+the path to your story to check just that file. Run the regression checks with
+`python3 -m unittest discover -s tests -v`.
+
+The validator checks scenarios and incidents against the v2 template: required
+fields and sections, tier headings, canonical domain order, explicit
+`not claimed` entries, known threat slugs matching the threats table, and
+incident source URLs. It accepts scalar frontmatter and indented block lists
+for `threats` and `sources`, as shown in the template; it does not parse general
+YAML, nested objects, inline lists, or multiline scalar values. Incident tier
+headings may be bare or include `: Tier N`; numbered headings must match their
+frontmatter. In an incident's domain table, `observed → required` pairs such
+as `1 → 4` keep the two tiers distinct. Scenarios use a single tier per domain.
+Neither form is averaged or forced to equal the overall tier.
+It checks neither tier justification nor the truth, completeness,
+or primary-source status of citations. Those require review.
+
+The unchanged v1 `credit-decisioning.md` is temporarily exempt, with a warning,
+pending [its retrofit](https://github.com/AAI-Society/openverification/pull/12).
+The exemption matches that exact path and content hash. Editing the story
+requires completing its v2 migration; new v1 stories are rejected. The strict
+per-file validator still reports the legacy story's structural omissions.
+
 ### The two tests in "Why not one tier down?"
 
 **Reversibility.** Can the harm be undone once you detect it? Money that has

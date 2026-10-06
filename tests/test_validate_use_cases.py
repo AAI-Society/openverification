@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+import hashlib
 import io
 import re
+import runpy
 import tempfile
 import unittest
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.validate_use_cases import (
     DISCLAIMER,
     DOMAINS,
+    INCIDENT_DISCLAIMER,
+    LEGACY_CREDIT_SHA256,
     REQUIRED_FIELDS,
     USE_CASES_DIR,
     collect_story_files,
@@ -30,7 +35,10 @@ def valid_story() -> str:
     return f"""---
 industry: testing
 use_case: AI agent exercising a documented action
+submission_type: scenario
 claimed_tier: 3
+threats:
+  - context-blind-authorization
 review_note: extra scalar fields are allowed
 ---
 
@@ -58,17 +66,46 @@ Additional sections are allowed.
 
 | Domain | Tier | Why |
 | :--- | :---: | ---: |
-| Privacy | 2 | A nonblank rationale. |
 | Provenance | 3 | A nonblank rationale. |
-| Identity | 2 | A nonblank rationale. |
+| Privacy | not claimed | No privacy claim. |
+| Portability | 2 | A nonblank rationale. |
 | Authorization | 3 | A nonblank rationale. |
-| Portability | 1 | A nonblank rationale. |
+| Identity | 2 | A nonblank rationale. |
 | Security | 3 | A nonblank rationale. |
+
+## Threats exercised
+
+| Threat | What it looks like here |
+|---|---|
+| `context-blind-authorization` | A grant is reused for a different target. |
+
+## What Proof-of-Control does not verify here
+
+Whether the policy was adequate.
+
+## Residual trust assumptions to disclose
+
+Credential issuers and verification-toolchain soundness.
 
 ## Notes / open questions
 
 None.
 """
+
+
+def valid_incident() -> str:
+    return (
+        valid_story()
+        .replace(
+            "submission_type: scenario\nclaimed_tier: 3",
+            "submission_type: incident\nobserved_tier: 1\nrequired_tier: 4\nsources:\n  - Investigator report — https://example.com/report",
+        )
+        .replace(DISCLAIMER_BLOCK, f"> *{INCIDENT_DISCLAIMER}*")
+        .replace(
+            "## Claimed tier: Tier 3\n\nThe fixture explains its target tier.",
+            "## Tier observed\n\nThe sources support Tier 1.\n\n## Tier the risky domains demanded\n\nThe deployment needed Tier 4.",
+        )
+    )
 
 
 class ValidateUseCasesTests(unittest.TestCase):
@@ -83,7 +120,19 @@ class ValidateUseCasesTests(unittest.TestCase):
         self.assertTrue(stories)
         for story in stories:
             with self.subTest(story=story):
-                self.assertEqual(validate_file(story), [])
+                if (
+                    story.name == "credit-decisioning.md"
+                    and hashlib.sha256(story.read_bytes()).hexdigest()
+                    == LEGACY_CREDIT_SHA256
+                ):
+                    self.assertTrue(
+                        validate_file(story),
+                        "the strict validator must still reject the legacy story",
+                    )
+                else:
+                    self.assertEqual(validate_file(story), [])
+        with redirect_stderr(io.StringIO()), redirect_stdout(io.StringIO()):
+            self.assertEqual(main(()), 0)
 
     def test_contract_matches_template(self) -> None:
         template = (USE_CASES_DIR / "_TEMPLATE.md").read_text(encoding="utf-8")
@@ -103,9 +152,12 @@ class ValidateUseCasesTests(unittest.TestCase):
         )
         expected = (
             "Scenario",
-            "Claimed tier: Tier <N>",
+            "Claimed tier: Tier N",
             "Why not one tier down?",
             "Tier by domain",
+            "Threats exercised",
+            "What Proof-of-Control does not verify here",
+            "Residual trust assumptions to disclose",
             "Notes / open questions",
         )
         self.assertEqual(headings, expected)
@@ -113,8 +165,7 @@ class ValidateUseCasesTests(unittest.TestCase):
         rows = [
             cells[0]
             for line in lines
-            if (cells := table_cells(line))
-            and cells[0] not in {"Domain", "---------------"}
+            if (cells := table_cells(line)) and cells[0] in DOMAINS
         ]
         self.assertEqual(tuple(rows), DOMAINS)
         quote = " ".join(line.lstrip()[1:] for line in lines if line.startswith(">"))
@@ -132,6 +183,10 @@ class ValidateUseCasesTests(unittest.TestCase):
 
     def test_reports_frontmatter_errors_and_tier_mismatch(self) -> None:
         cases = {
+            "blank scalar": (
+                valid_story().replace("industry: testing", 'industry: "   "'),
+                "frontmatter field 'industry' must not be blank",
+            ),
             "unclosed": (
                 valid_story().replace("---\n\n# Structural", "\n# Structural", 1),
                 "frontmatter is missing its closing '---'",
@@ -139,7 +194,7 @@ class ValidateUseCasesTests(unittest.TestCase):
             "syntax": (
                 valid_story().replace(
                     "review_note: extra scalar fields are allowed",
-                    "- unsupported list value",
+                    "review_note: [unsupported inline collection]\n  nested: value",
                 ),
                 "unsupported frontmatter syntax",
             ),
@@ -249,6 +304,14 @@ class ValidateUseCasesTests(unittest.TestCase):
                 "The fixture names the remaining Tier 2 failure.\n",
                 "section '## Why not one tier down?' must not be blank",
             ),
+            (
+                "Whether the policy was adequate.\n",
+                "section '## What Proof-of-Control does not verify here' must not be blank",
+            ),
+            (
+                "Credential issuers and verification-toolchain soundness.\n",
+                "section '## Residual trust assumptions to disclose' must not be blank",
+            ),
         )
         for content, expected in cases:
             with self.subTest(expected=expected):
@@ -283,8 +346,8 @@ class ValidateUseCasesTests(unittest.TestCase):
             "| Domain | Tier | Why |", "Domain | Tier | Why"
         )
         hidden_row = valid_story().replace(
-            "| Privacy | 2 | A nonblank rationale. |",
-            "<!-- | Privacy | 2 | A nonblank rationale. | -->",
+            "| Privacy | not claimed | No privacy claim. |",
+            "<!-- | Privacy | not claimed | No privacy claim. | -->",
         )
         self.assertIn(
             "tier-by-domain Markdown table is missing",
@@ -301,8 +364,8 @@ class ValidateUseCasesTests(unittest.TestCase):
             "| Domain | Tier | Why |\n\n" + separator,
         )
         gap_after_separator = valid_story().replace(
-            separator + "\n| Privacy",
-            separator + "\n\n| Privacy",
+            separator + "\n| Provenance",
+            separator + "\n\n| Provenance",
         )
 
         one_hyphen = valid_story().replace(separator, "| :- | -: | :- |")
@@ -327,7 +390,7 @@ class ValidateUseCasesTests(unittest.TestCase):
     def test_reports_domain_row_errors(self) -> None:
         story = (
             valid_story()
-            .replace("| Privacy | 2 |", "| Privacy | 5 |")
+            .replace("| Privacy | not claimed |", "| Privacy | 5 |")
             .replace(
                 "| Provenance | 3 | A nonblank rationale. |",
                 "| Provenance | 3 | |",
@@ -341,7 +404,7 @@ class ValidateUseCasesTests(unittest.TestCase):
         )
         messages = self.findings_for(story)
         expected = (
-            "Privacy tier must be an integer from 1 to 4",
+            "Privacy tier must be an integer from 1 to 4 or 'not claimed'",
             "Provenance rationale must not be blank",
             "unexpected domain row 'Reliability'",
             "duplicate domain row 'Identity'",
@@ -358,6 +421,8 @@ class ValidateUseCasesTests(unittest.TestCase):
             story.write_text(valid_story(), encoding="utf-8")
             (root / "README.md").write_text("support", encoding="utf-8")
             (root / "_TEMPLATE.md").write_text("support", encoding="utf-8")
+            (root / "THREATS.md").write_text("support", encoding="utf-8")
+            (root / "COVERAGE.md").write_text("support", encoding="utf-8")
             self.assertEqual(collect_story_files((root,)), [story.resolve()])
 
     def test_cli_reports_file_line_and_nonzero_exit(self) -> None:
@@ -369,6 +434,285 @@ class ValidateUseCasesTests(unittest.TestCase):
                 code = main((str(path),))
             self.assertEqual(code, 1)
             self.assertRegex(stderr.getvalue(), r"bad\.md:\d+: ")
+
+    def test_incident_keeps_observed_and_required_tiers_distinct(self) -> None:
+        self.assertEqual(self.findings_for(valid_incident()), [])
+        numbered = (
+            valid_incident()
+            .replace("## Tier observed\n", "## Tier observed: Tier 1\n")
+            .replace(
+                "## Tier the risky domains demanded\n",
+                "## Tier the risky domains demanded: Tier 4\n",
+            )
+        )
+        self.assertEqual(self.findings_for(numbered), [])
+        self.assertTrue(
+            any(
+                "must match frontmatter observed_tier" in message
+                for message in self.findings_for(
+                    numbered.replace("Tier observed: Tier 1", "Tier observed: Tier 4")
+                )
+            )
+        )
+        # Ordinal tiers are not averaged, nor forced to equal a domain maximum.
+        self.assertEqual(
+            self.findings_for(
+                valid_incident()
+                .replace("observed_tier: 1", "observed_tier: 4")
+                .replace("required_tier: 4", "required_tier: 1")
+            ),
+            [],
+        )
+
+    def test_incident_requires_sources_disclaimer_and_two_headings(self) -> None:
+        cases = (
+            (
+                "sources:\n  - Investigator report — https://example.com/report\n",
+                "",
+                "missing required frontmatter field 'sources'",
+            ),
+            (
+                "https://example.com/report",
+                "no URL",
+                "each source must contain an HTTP(S) URL",
+            ),
+            (
+                "required_tier: 4",
+                "required_tier: 5",
+                "required_tier must be an integer",
+            ),
+            (
+                INCIDENT_DISCLAIMER,
+                "Illustrative scenario.",
+                "documented-incident disclaimer",
+            ),
+            (
+                "## Tier observed",
+                "## Claimed tier: Tier 1",
+                "incidents use Tier observed",
+            ),
+            (
+                "## Tier the risky domains demanded",
+                "## Requested tier",
+                "expected one '## Tier the risky domains demanded'",
+            ),
+            (
+                "observed_tier: 1",
+                "observed_tier: 1\nclaimed_tier: 1",
+                "claimed_tier is not used for incident",
+            ),
+        )
+        for old, new, expected in cases:
+            with self.subTest(expected=expected):
+                self.assertTrue(
+                    any(
+                        expected in message
+                        for message in self.findings_for(
+                            valid_incident().replace(old, new)
+                        )
+                    )
+                )
+
+    def test_threats_are_known_unique_and_match_the_visible_table(self) -> None:
+        cases = (
+            (
+                "| `context-blind-authorization` | A grant is reused for a different target. |",
+                "| `context-blind-authorization` | A grant is reused for a different target. |\n| `context-blind-authorization` | Another description. |",
+                "duplicate threat row 'context-blind-authorization'",
+            ),
+            (
+                "  - context-blind-authorization",
+                "  - invented-threat",
+                "unknown threat slug 'invented-threat'",
+            ),
+            (
+                "  - context-blind-authorization",
+                "  - context-blind-authorization\n  - context-blind-authorization",
+                "duplicate frontmatter threat slugs",
+            ),
+            (
+                "`context-blind-authorization`",
+                "`excessive-agency`",
+                "rows must match frontmatter threats",
+            ),
+            (
+                "A grant is reused for a different target.",
+                "",
+                "threat description must not be blank",
+            ),
+            (
+                "| `context-blind-authorization` | A grant is reused for a different target. |",
+                "<!-- | `context-blind-authorization` | A grant is reused for a different target. | -->",
+                "rows must match frontmatter threats",
+            ),
+            (
+                "threats:\n  - context-blind-authorization",
+                "threats: [context-blind-authorization]",
+                "must use an indented block list",
+            ),
+        )
+        for old, new, expected in cases:
+            with self.subTest(expected=expected):
+                self.assertTrue(
+                    any(
+                        expected in message
+                        for message in self.findings_for(
+                            valid_story().replace(old, new)
+                        )
+                    )
+                )
+
+    def test_domain_order_and_explicit_unclaimed_domains(self) -> None:
+        out_of_order = valid_story().replace(
+            "| Provenance | 3 | A nonblank rationale. |\n| Privacy | not claimed | No privacy claim. |",
+            "| Privacy | not claimed | No privacy claim. |\n| Provenance | 3 | A nonblank rationale. |",
+        )
+        self.assertTrue(
+            any(
+                "canonical order" in message
+                for message in self.findings_for(out_of_order)
+            )
+        )
+        self.assertIn(
+            "Privacy tier must be an integer from 1 to 4 or 'not claimed'",
+            self.findings_for(
+                valid_story().replace("| Privacy | not claimed |", "| Privacy | |")
+            ),
+        )
+
+    def test_rejects_copied_prompts_and_unclosed_quotes(self) -> None:
+        prompt = "*Anything unresolved, or where reasonable people might place this differently.\nIf this use case turns on a control that was asserted but never wired into the\nexecution path, note it here: no tier closes that gap.*"
+        self.assertTrue(
+            any(
+                "still contains a template prompt" in message
+                for message in self.findings_for(valid_story().replace("None.", prompt))
+            )
+        )
+        for old, new in (
+            ("claimed_tier: 3", 'claimed_tier: "3'),
+            ("  - context-blind-authorization", "  - 'context-blind-authorization"),
+        ):
+            with self.subTest(new=new):
+                self.assertIn(
+                    "unclosed quoted frontmatter value",
+                    self.findings_for(valid_story().replace(old, new)),
+                )
+        quoted = (
+            valid_story()
+            .replace("claimed_tier: 3", 'claimed_tier: "3"')
+            .replace(
+                "  - context-blind-authorization", "  - 'context-blind-authorization'"
+            )
+        )
+        self.assertEqual(self.findings_for(quoted), [])
+
+    def test_checks_visible_tables_and_preserves_escaped_pipes(self) -> None:
+        self.assertEqual(
+            self.findings_for(
+                valid_story().replace(
+                    "A nonblank rationale.", r"One option \| another."
+                )
+            ),
+            [],
+        )
+        self.assertTrue(
+            any(
+                "must have 3 cells" in message
+                for message in self.findings_for(
+                    valid_story().replace(
+                        "| Security | 3 | A nonblank rationale. |",
+                        "| Security | 3 | Split | rationale. |",
+                    )
+                )
+            )
+        )
+
+    def test_incident_domain_pairs_are_not_scenario_claims(self) -> None:
+        paired = (
+            valid_incident()
+            .replace("| Provenance | 3 |", "| Provenance | 1 → 3 |")
+            .replace("| Authorization | 3 |", "| Authorization | 1 → 4 |")
+        )
+        self.assertEqual(self.findings_for(paired), [])
+        self.assertTrue(
+            any(
+                "Authorization tier must" in message
+                for message in self.findings_for(
+                    valid_story().replace(
+                        "| Authorization | 3 |", "| Authorization | 1 → 4 |"
+                    )
+                )
+            )
+        )
+        self.assertTrue(
+            any(
+                "Authorization tier must" in message
+                for message in self.findings_for(
+                    paired.replace(
+                        "| Authorization | 1 → 4 |", "| Authorization | 1 → 5 |"
+                    )
+                )
+            )
+        )
+
+    def test_coverage_reads_the_same_threat_list_as_the_validator(self) -> None:
+        namespace = runpy.run_path(str(USE_CASES_DIR / "make_coverage.py"))
+        submissions = namespace["submissions"]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            story = (
+                valid_story()
+                .replace(
+                    "use_case: AI agent exercising a documented action",
+                    "use_case: A task --- with a delimiter inside a scalar",
+                )
+                .replace(
+                    "  - context-blind-authorization",
+                    "  - 'context-blind-authorization'\n  # A note between tags.\n\n  - excessive-agency",
+                )
+                .replace(
+                    "| `context-blind-authorization` | A grant is reused for a different target. |",
+                    "| `context-blind-authorization` | A grant is reused for a different target. |\n| `excessive-agency` | A grant is too broad. |",
+                )
+            )
+            (root / "story.md").write_text(story, encoding="utf-8")
+            self.assertEqual(self.findings_for(story), [])
+            with patch.dict(submissions.__globals__, {"HERE": root}):
+                _, by_case = submissions()
+            self.assertEqual(
+                by_case, {"story": ["context-blind-authorization", "excessive-agency"]}
+            )
+        hidden = valid_story().replace("|---|---|", "|---|---|\n\n")
+        self.assertTrue(
+            any(
+                "rows must match frontmatter threats" in message
+                for message in self.findings_for(hidden)
+            )
+        )
+
+    def test_legacy_exemption_is_exact_and_does_not_hide_edits(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            credit = root / "credit-decisioning.md"
+            credit.write_text("# Legacy bytes\n", encoding="utf-8")
+            with (
+                patch("scripts.validate_use_cases.USE_CASES_DIR", root),
+                patch(
+                    "scripts.validate_use_cases.LEGACY_CREDIT_SHA256",
+                    hashlib.sha256(credit.read_bytes()).hexdigest(),
+                ),
+            ):
+                stderr = io.StringIO()
+                with redirect_stderr(stderr), redirect_stdout(io.StringIO()):
+                    self.assertEqual(main((str(credit),)), 0)
+                self.assertIn("not v2-validated", stderr.getvalue())
+                credit.write_text("# Edited legacy bytes\n", encoding="utf-8")
+                with redirect_stderr(io.StringIO()):
+                    self.assertEqual(main((str(credit),)), 1)
+                other = root / "other.md"
+                other.write_text("# Legacy bytes\n", encoding="utf-8")
+                with redirect_stderr(io.StringIO()):
+                    self.assertEqual(main((str(other),)), 1)
 
 
 if __name__ == "__main__":
